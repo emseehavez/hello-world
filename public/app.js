@@ -9,6 +9,10 @@
   const errorMessage = document.getElementById('error-message');
   const submitBtn = document.getElementById('submit-btn');
   const confirmDetail = document.getElementById('confirm-detail');
+  const downloadBtn = document.getElementById('download-btn');
+
+  // Track the object URL for the current download so we can release it later.
+  let downloadUrl = null;
 
   const sigCanvas = document.getElementById('signature-pad');
   const guardianCanvas = document.getElementById('guardian-signature-pad');
@@ -71,6 +75,16 @@
     guardianPad.clear();
   });
 
+  // Convert a base64 string into a PDF Blob for downloading.
+  function pdfBlobFromBase64(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: 'application/pdf' });
+  }
+
   function showError(message) {
     errorMessage.textContent = message;
     errorMessage.hidden = false;
@@ -124,7 +138,23 @@
       if (!res.ok) {
         throw new Error(data.error || 'Submission failed.');
       }
-      confirmDetail.textContent = data.fileName ? `Saved as ${data.fileName}` : '';
+
+      // Prepare the signed PDF for download (save to Files, AirDrop, email…).
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+        downloadUrl = null;
+      }
+      if (data.pdfBase64) {
+        const blob = pdfBlobFromBase64(data.pdfBase64);
+        downloadUrl = URL.createObjectURL(blob);
+        downloadBtn.href = downloadUrl;
+        downloadBtn.setAttribute('download', data.fileName || 'MediaRelease.pdf');
+        downloadBtn.hidden = false;
+      } else {
+        downloadBtn.hidden = true;
+      }
+
+      confirmDetail.textContent = data.fileName ? data.fileName : '';
       formScreen.hidden = true;
       confirmationScreen.hidden = false;
       window.scrollTo(0, 0);
@@ -142,6 +172,11 @@
     signaturePad.clear();
     guardianPad.clear();
     clearError();
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      downloadUrl = null;
+    }
+    downloadBtn.hidden = true;
     confirmationScreen.hidden = true;
     formScreen.hidden = false;
     // Re-fit in case the viewport changed while the confirmation was showing.

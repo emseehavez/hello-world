@@ -1,0 +1,12 @@
+# One-click deploy config for Render (https://render.com).
+# Render reads this file and creates a free Node web service automatically.
+services:
+  - type: web
+    name: listening-lab-media-release
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20

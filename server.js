@@ -267,13 +267,30 @@ app.post('/api/submit', async (req, res) => {
       signedDate: humanDate
     });
 
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     const baseName = `MediaRelease_${sanitizeForFilename(trimmedName)}_${dateStr}_${timeStr}`;
-    const filePath = uniqueFilePath(OUTPUT_DIR, baseName);
-    fs.writeFileSync(filePath, pdfBytes);
+    let fileName = `${baseName}.pdf`;
 
-    console.log(`Saved signed release: ${filePath}`);
-    return res.json({ ok: true, fileName: path.basename(filePath) });
+    // Best-effort: also save a copy on the machine running the server. This
+    // works when running locally (saves to ~/Documents/Signed Media Releases).
+    // On a cloud host the disk is temporary, so the real delivery is the
+    // download we return below — don't fail the request if the write fails.
+    try {
+      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+      const filePath = uniqueFilePath(OUTPUT_DIR, baseName);
+      fs.writeFileSync(filePath, pdfBytes);
+      fileName = path.basename(filePath);
+      console.log(`Saved signed release: ${filePath}`);
+    } catch (writeErr) {
+      console.warn(`Could not save a local copy (returning download only): ${writeErr.message}`);
+    }
+
+    // Always hand the signed PDF back to the browser so the signer/operator
+    // can download, AirDrop, or email it — essential when deployed online.
+    return res.json({
+      ok: true,
+      fileName,
+      pdfBase64: Buffer.from(pdfBytes).toString('base64')
+    });
   } catch (err) {
     console.error('Failed to save release:', err);
     return res.status(500).json({ error: 'Something went wrong saving the release.' });
@@ -283,7 +300,8 @@ app.post('/api/submit', async (req, res) => {
 app.listen(PORT, () => {
   console.log('');
   console.log('  Listening Lab — Media Release app is running.');
-  console.log(`  Open this on your phone or tablet:  http://localhost:${PORT}`);
-  console.log(`  Signed PDFs are saved to:           ${OUTPUT_DIR}`);
+  console.log(`  Local URL:                          http://localhost:${PORT}`);
+  console.log(`  Local copies (when possible) saved: ${OUTPUT_DIR}`);
+  console.log('  Each signer can also download their signed PDF from the app.');
   console.log('');
 });

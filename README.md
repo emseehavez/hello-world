@@ -5,7 +5,49 @@ A simple, mobile-first web app for collecting signed media releases for
 type their name, sign with a finger, and submit. Each signed release is saved
 as its own PDF in a folder on your computer.
 
-## What you need
+There are two ways to run it:
+
+- **A) Put it online** so it opens in any phone browser via a link — no computer
+  needed. Each signed release comes back as a **downloadable PDF**. See
+  [Deploy online (from your phone)](#deploy-online-from-your-phone).
+- **B) Run it locally** on your own Mac/PC, where each release also auto-saves
+  as a PDF into your Documents folder. See [Install and run](#install-and-run).
+
+---
+
+## Deploy online (from your phone)
+
+This uses [Render](https://render.com)'s free tier and can be done entirely from
+an iPhone — no computer required. The code already includes a `render.yaml` that
+configures everything.
+
+1. The app's code is on GitHub at `emseehavez/hello-world` (branch
+   `claude/listening-lab-release-app-s0Qhd`). Make sure it's pushed there.
+2. In Safari, go to **render.com** and sign up (free) — signing in with GitHub
+   is easiest.
+3. Tap **New** → **Web Service** → connect your GitHub and pick the
+   `hello-world` repository.
+4. Choose the branch `claude/listening-lab-release-app-s0Qhd` (or `main` if
+   you've merged it). Render reads `render.yaml`, so the build command
+   (`npm install`) and start command (`npm start`) are filled in for you. Make
+   sure the **Free** plan is selected.
+5. Tap **Create / Deploy** and wait a couple of minutes. Render gives you a
+   public link like `https://listening-lab-media-release.onrender.com`.
+6. Open that link on any phone or tablet to collect signatures.
+
+**Getting the signed PDFs:** when deployed online, the app shows a **Download
+signed PDF** button on the thank-you screen after each signature. On an iPhone
+that opens the PDF so you can **Save to Files**, **AirDrop**, or **email** it to
+yourself. (Online hosts don't keep files permanently, so always grab the PDF via
+that button.)
+
+> Note: on Render's free plan the app "sleeps" after ~15 minutes of no use, so
+> the very first visit after a quiet spell can take ~30–50 seconds to wake up.
+> Open the link a minute before you need it at an event.
+
+---
+
+## What you need (to run locally)
 
 - [Node.js](https://nodejs.org/) version 18 or newer (this installs `npm` too).
   To check what you have, run `node -v` in a terminal.
@@ -43,13 +85,18 @@ The computer running the app must stay on and awake.
 
 ## Where the signed PDFs go
 
-Every submission is saved as a PDF in:
+After each signature, the thank-you screen always offers a **Download signed
+PDF** button, so you can save/AirDrop/email the release from any device.
+
+When running **locally**, every submission is *also* saved automatically as a
+PDF in:
 
 ```
 <your home folder>/Documents/Signed Media Releases
 ```
 
-The folder is created automatically the first time someone submits. Files are
+The folder is created automatically the first time someone submits. (When
+running on a cloud host this local copy is skipped — use the download button.) Files are
 named like:
 
 ```

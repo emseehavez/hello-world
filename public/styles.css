@@ -169,6 +169,24 @@ input[type="text"]:focus {
   cursor: default;
 }
 
+/* Anchor styled as a button (download link) */
+a.submit-btn {
+  text-align: center;
+  text-decoration: none;
+}
+
+/* Secondary action on the confirmation screen */
+.secondary-btn {
+  background: transparent;
+  color: var(--teal);
+  border: 1px solid var(--teal);
+  margin-top: 12px;
+}
+
+.secondary-btn:active {
+  background: #e8eded;
+}
+
 /* Errors */
 .error-message {
   margin: 18px 0 0;
