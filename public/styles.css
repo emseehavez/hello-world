@@ -1,0 +1,211 @@
+:root {
+  --teal: #0d4f4f;
+  --teal-dark: #093a3a;
+  --bg: #f4f6f6;
+  --text: #1d2424;
+  --muted: #5c6a6a;
+  --border: #cdd6d6;
+  --error: #b3261e;
+  --white: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Header */
+.site-header {
+  background: var(--teal);
+  color: var(--white);
+  padding: 20px 20px 18px;
+  text-align: center;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+}
+
+.site-header .subtitle {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+/* Content */
+.content {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 18px 48px;
+}
+
+.release-text p {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+/* Form fields */
+.field-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin: 18px 0 6px;
+  color: var(--teal-dark);
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 6px;
+}
+
+.field-label-row .field-label {
+  margin: 0;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 13px 14px;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--text);
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(13, 79, 79, 0.15);
+}
+
+/* Signature pad */
+.signature-wrap {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--white);
+  overflow: hidden;
+  touch-action: none; /* let the canvas capture finger drawing */
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--teal-dark);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.clear-btn:active {
+  background: #e8eded;
+}
+
+/* Guardian section */
+.guardian-section {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 4px 14px 14px;
+}
+
+.guardian-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--teal-dark);
+  padding: 12px 0;
+  list-style-position: inside;
+}
+
+/* Submit + actions */
+.submit-btn {
+  display: block;
+  width: 100%;
+  margin-top: 26px;
+  padding: 16px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--white);
+  background: var(--teal);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.submit-btn:active {
+  background: var(--teal-dark);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Errors */
+.error-message {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  background: #fbe9e7;
+  border: 1px solid var(--error);
+  border-radius: 8px;
+  color: var(--error);
+  font-size: 0.95rem;
+}
+
+/* Confirmation screen */
+.confirmation {
+  text-align: center;
+  padding-top: 48px;
+}
+
+.check-circle {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: var(--white);
+  font-size: 2.2rem;
+  line-height: 72px;
+}
+
+.confirmation h2 {
+  font-size: 1.3rem;
+  color: var(--teal-dark);
+  margin: 0 0 10px;
+}
+
+.confirm-detail {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 8px;
+  word-break: break-word;
+}

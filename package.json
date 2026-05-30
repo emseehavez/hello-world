@@ -1,0 +1,15 @@
+{
+  "name": "listening-lab-media-release",
+  "version": "1.0.0",
+  "description": "Collect signed media releases for Listening Lab and save each one as a PDF.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "pdf-lib": "^1.17.1",
+    "signature_pad": "^4.2.0"
+  }
+}

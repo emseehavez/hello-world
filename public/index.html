@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Listening Lab — Media Release</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- FORM SCREEN -->
+    <main id="form-screen">
+      <header class="site-header">
+        <h1>LISTENING LAB</h1>
+        <p class="subtitle">Media Release &amp; Consent Form</p>
+      </header>
+
+      <section class="content">
+        <div id="release-text" class="release-text" aria-label="Release text">
+          <!-- Release paragraphs are inserted here by app.js -->
+        </div>
+
+        <form id="release-form" novalidate>
+          <label class="field-label" for="full-name">Full Name</label>
+          <input
+            type="text"
+            id="full-name"
+            name="full-name"
+            autocomplete="name"
+            placeholder="Type your full name"
+          />
+
+          <div class="field-label-row">
+            <span class="field-label">Signature</span>
+            <button type="button" class="clear-btn" id="clear-signature">Clear</button>
+          </div>
+          <div class="signature-wrap">
+            <canvas id="signature-pad" class="signature-canvas"></canvas>
+          </div>
+
+          <!-- Optional parent / guardian section -->
+          <details class="guardian-section">
+            <summary>Signing for a minor? Add parent / guardian (optional)</summary>
+
+            <label class="field-label" for="guardian-name">Guardian Name</label>
+            <input
+              type="text"
+              id="guardian-name"
+              name="guardian-name"
+              autocomplete="name"
+              placeholder="Parent or guardian full name"
+            />
+
+            <div class="field-label-row">
+              <span class="field-label">Guardian Signature</span>
+              <button type="button" class="clear-btn" id="clear-guardian-signature">Clear</button>
+            </div>
+            <div class="signature-wrap">
+              <canvas id="guardian-signature-pad" class="signature-canvas"></canvas>
+            </div>
+          </details>
+
+          <p id="error-message" class="error-message" role="alert" hidden></p>
+
+          <button type="submit" id="submit-btn" class="submit-btn">Submit</button>
+        </form>
+      </section>
+    </main>
+
+    <!-- CONFIRMATION SCREEN -->
+    <main id="confirmation-screen" hidden>
+      <header class="site-header">
+        <h1>LISTENING LAB</h1>
+        <p class="subtitle">Media Release &amp; Consent Form</p>
+      </header>
+      <section class="content confirmation">
+        <div class="check-circle" aria-hidden="true">&#10003;</div>
+        <h2>Thank you, your release has been signed.</h2>
+        <p class="confirm-detail" id="confirm-detail"></p>
+        <button type="button" id="new-release-btn" class="submit-btn">Start a new release</button>
+      </section>
+    </main>
+
+    <script src="/vendor/signature_pad.umd.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
