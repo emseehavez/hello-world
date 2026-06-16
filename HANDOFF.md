@@ -5,18 +5,19 @@
 > conversation (the *Volunteer Conversation Recording Project*) and consolidated
 > there. Everything needed to recreate the app is inline below — you do **not**
 > need access to the original repo.
+>
+> **Google Drive is intentionally NOT included.** The destination project
+> already has Google Drive set up, so this package leaves a clearly marked spot
+> in `server.js` (`/api/submit`) where that existing uploader plugs in. Until
+> then, the app returns the finished PDF for download.
 
 ---
 
 ## 1. Where it currently lives
 
-- **Repo:** `https://github.com/emseehavez/hello-world`
-- **Branch:** `claude/listening-lab-release-app-s0Qhd` (also merged to `master`)
-- **Commit:** `fd3bd53998992822c7d0e89522c3cbade0c98a18`
-- **Host:** deployed (or being deployed) on **Render** free tier from `master`.
-
-> Matt intends to retire this repo. Treat the code below as the source of truth,
-> not the repo.
+- **Repo:** `https://github.com/emseehavez/hello-world` (Matt intends to retire this)
+- **Host:** was on Render free tier. The destination project is on a different host.
+- Treat the code below as the source of truth, not the repo.
 
 ---
 
@@ -28,11 +29,11 @@ with a finger, and submits. On submit the server:
 
 1. Builds a PDF containing the full release text, typed name, signature image,
    and an **auto-captured signing date** (the user never enters a date).
-2. **Uploads the PDF automatically to a Google Drive folder** (primary delivery).
-3. Falls back to a browser **download** of the PDF if Drive isn't configured yet
-   or an upload fails.
+2. Hands the PDF off for storage. **← this is where the volunteer project's
+   existing Google Drive upload plugs in** (see the marked block in `server.js`).
+3. Until Drive is wired in, returns the PDF so the browser can **download** it.
 4. Also writes a local copy to `~/Documents/Signed Media Releases` when running
-   on a real computer (best-effort; skipped silently on ephemeral cloud disks).
+   on a real computer (best-effort; harmless to remove).
 
 Filenames: `MediaRelease_<Name>_<YYYY-MM-DD>_<HHMM>.pdf`, name sanitized for the
 filesystem, never overwritten (collisions get `_2`, `_3`, …).
@@ -53,36 +54,23 @@ Other behavior:
 - **signature_pad** (npm) for finger-drawn signatures, served from
   `node_modules` so it works offline.
 - **pdf-lib** for PDF generation.
-- **googleapis** for Google Drive upload via OAuth2 (operator's own Google
-  account + refresh token — NOT a service account; see §6).
 - Plain HTML/CSS/JS front end in `public/` (no framework).
 
 ---
 
-## 4. Google Drive integration — how it works
+## 4. Where to plug in Google Drive
 
-Uploading to a **personal** Google Drive folder requires the operator's own
-Google account via OAuth2 (a service account can't write to a personal "My Drive"
-folder because service accounts have no storage quota). The app therefore:
+In `server.js`, inside `POST /api/submit`, there's a clearly marked block:
 
-1. Reads three secrets from environment variables:
-   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`.
-2. Destination folder is `GDRIVE_FOLDER_ID`
-   (default: `1YjuH6TGdtpZ0MIZChItaBRLKOMaY8RFE` — the Listening Lab folder Matt
-   shared).
-3. Provides a one-time authorization flow at `/setup/google` →
-   `/oauth2callback` that mints the refresh token (the operator pastes it back
-   into the env vars).
+```js
+// >>> PLUG IN THE VOLUNTEER PROJECT'S EXISTING GOOGLE DRIVE UPLOAD HERE <<<
+//     await yourDrive.upload(Buffer.from(pdfBytes), fileName);
+```
 
-**One-time setup the operator must do (Google requires it):**
-- Google Cloud Console → new project → enable **Google Drive API**.
-- OAuth consent screen: External; add own email as a Test user; ideally set
-  publishing status to **In production** so the refresh token doesn't expire
-  weekly. Expect an "unverified app" warning — fine for personal use.
-- Create OAuth client ID (Web application). Redirect URI = `<app-url>/oauth2callback`.
-- Put `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` into env, visit
-  `/setup/google`, authorize with the account that owns the Drive folder, copy
-  the refresh token into `GOOGLE_REFRESH_TOKEN`.
+At that point you have `pdfBytes` (the finished PDF) and `fileName` (the desired
+name). Call the destination project's existing Drive uploader there. Once it's
+storing reliably, you can hide the download button in `public/app.js` and just
+show the "saved" confirmation.
 
 ---
 
@@ -90,42 +78,45 @@ folder because service accounts have no storage quota). The app therefore:
 
 ```
 .
-├── server.js          # Express server: form API, PDF build, Drive upload, OAuth setup routes
-├── googleDrive.js     # Google Drive OAuth2 + upload helper
+├── server.js          # Express server: form API, PDF build, Drive plug-in point
 ├── package.json
-├── render.yaml        # Render deploy config (env vars)
 ├── .gitignore
 ├── public/
 │   ├── index.html     # form + confirmation screens
 │   ├── styles.css     # mobile-first styling, teal header
-│   └── app.js         # signature pads, validation, submit, download fallback
-└── README.md
+│   └── app.js         # signature pads, validation, submit, PDF download
+└── README.md          # (run instructions; not reproduced here — see §8)
 ```
 
 `node_modules/` is installed via `npm install` (not included here).
 
 ---
 
-## 6. Notes & recommendations for consolidation (read me)
+## 6. Run it
 
-- **Reuse the volunteer project's existing Google auth** instead of redoing the
-  OAuth dance. If that project already has a verified app / stable credentials,
-  point this feature's `GOOGLE_*` env vars at the same OAuth client. The Drive
-  upload code in `googleDrive.js` is self-contained and easy to drop in.
-- **Sustainability concerns with the current setup** (worth fixing in the move):
-  - Render free tier sleeps after ~15 min (cold-start delay).
-  - OAuth refresh tokens expire in 7 days unless the consent screen is "In
-    production".
-  - Two separate deployments to maintain — the whole point of consolidating.
-- **Suggested shape after merge:** one app, one host, one Google project; expose
-  the media-release form as a route/page within the volunteer project, sharing
-  its Drive-upload module and credentials.
-- The release text in `server.js` (`RELEASE_PARAGRAPHS`) is verbatim/legal — keep
-  it exactly as-is unless Matt says otherwise.
+```bash
+npm install
+npm start
+# open the printed local URL (default http://localhost:3000)
+```
+
+Runs fully without any Google setup — it just offers the PDF as a download until
+the project's Drive upload is wired into the marked spot.
 
 ---
 
-# 7. FULL SOURCE
+## 7. Notes for consolidation
+
+- **Suggested shape after merge:** expose the media-release form as a route/page
+  within the volunteer project, and call that project's existing Drive uploader
+  at the marked block in `/api/submit`. One app, one host, one Google setup.
+- The release text in `server.js` (`RELEASE_PARAGRAPHS`) is verbatim/legal —
+  keep it exactly as-is unless Matt says otherwise.
+- The teal brand color is `#0d4f4f`.
+
+---
+
+# 8. FULL SOURCE
 
 Everything below is the complete source. Recreate the files exactly.
 
@@ -148,7 +139,6 @@ Everything below is the complete source. Recreate the files exactly.
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
-    "googleapis": "^144.0.0",
     "pdf-lib": "^1.17.1",
     "signature_pad": "^4.2.0"
   }
@@ -167,42 +157,9 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
-const drive = require('./googleDrive');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// We sit behind a proxy on hosts like Render; trust it so we build correct
-// https redirect URLs for the Google authorization step.
-app.set('trust proxy', true);
-
-// The exact redirect URL Google sends the operator back to after authorizing.
-// Derived from the incoming request so it matches the live host automatically.
-function redirectUriFromReq(req) {
-  const proto = req.headers['x-forwarded-proto'] || req.protocol;
-  return `${proto}://${req.get('host')}/oauth2callback`;
-}
-
-// Minimal styled HTML page used by the one-time Google setup screens.
-function setupPage(title, bodyHtml) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
-<style>
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    margin:0;background:#f4f6f6;color:#1d2424;line-height:1.5}
-  header{background:#0d4f4f;color:#fff;padding:18px 20px}
-  header h1{margin:0;font-size:1.2rem;letter-spacing:1px}
-  .wrap{max-width:640px;margin:0 auto;padding:20px 18px}
-  pre{background:#fff;border:1px solid #cdd6d6;border-radius:8px;padding:14px;
-    overflow:auto;white-space:pre-wrap;word-break:break-all;font-size:0.95rem}
-  code{background:#e8eded;padding:2px 5px;border-radius:4px}
-  a.btn{display:inline-block;background:#0d4f4f;color:#fff;text-decoration:none;
-    padding:12px 18px;border-radius:8px;margin-top:8px}
-</style></head>
-<body><header><h1>LISTENING LAB — Setup</h1></header>
-<div class="wrap"><h2>${title}</h2>${bodyHtml}</div></body></html>`;
-}
 
 // The release text shown on the form and stamped onto the PDF (verbatim).
 const RELEASE_PARAGRAPHS = [
@@ -212,7 +169,7 @@ const RELEASE_PARAGRAPHS = [
   'I confirm that I am at least 18 years old (or that a parent/guardian is signing on my behalf) and that I am freely granting these rights.'
 ];
 
-// Where signed PDFs are saved: ~/Documents/Signed Media Releases
+// Where signed PDFs are saved when running on a real computer.
 const OUTPUT_DIR = path.join(os.homedir(), 'Documents', 'Signed Media Releases');
 
 // Accept larger JSON bodies because signatures are base64-encoded PNG images.
@@ -465,10 +422,7 @@ app.post('/api/submit', async (req, res) => {
     const baseName = `MediaRelease_${sanitizeForFilename(trimmedName)}_${dateStr}_${timeStr}`;
     let fileName = `${baseName}.pdf`;
 
-    // Best-effort: also save a copy on the machine running the server. This
-    // works when running locally (saves to ~/Documents/Signed Media Releases).
-    // On a cloud host the disk is temporary, so the real delivery is the
-    // download we return below — don't fail the request if the write fails.
+    // Best-effort local copy (works when running on a real computer).
     try {
       fs.mkdirSync(OUTPUT_DIR, { recursive: true });
       const filePath = uniqueFilePath(OUTPUT_DIR, baseName);
@@ -476,32 +430,25 @@ app.post('/api/submit', async (req, res) => {
       fileName = path.basename(filePath);
       console.log(`Saved signed release: ${filePath}`);
     } catch (writeErr) {
-      console.warn(`Could not save a local copy (returning download only): ${writeErr.message}`);
+      console.warn(`Could not save a local copy: ${writeErr.message}`);
     }
 
-    // Primary delivery: upload the signed PDF straight to the Google Drive
-    // folder, automatically. If Drive isn't configured yet (or the upload
-    // fails), we still return the PDF so it can be downloaded as a fallback.
-    let driveStatus = { uploaded: false, configured: drive.isConfigured() };
-    if (drive.isConfigured()) {
-      try {
-        const uploaded = await drive.uploadPdf(Buffer.from(pdfBytes), fileName);
-        driveStatus = {
-          uploaded: true,
-          configured: true,
-          link: uploaded.webViewLink || null
-        };
-        console.log(`Uploaded to Google Drive: ${fileName}`);
-      } catch (driveErr) {
-        console.error('Google Drive upload failed:', driveErr.message);
-        driveStatus = { uploaded: false, configured: true, error: true };
-      }
-    }
+    // ======================================================================
+    // >>> PLUG IN THE VOLUNTEER PROJECT'S EXISTING GOOGLE DRIVE UPLOAD HERE <<<
+    //
+    // `pdfBytes` is the finished PDF and `fileName` is the desired filename.
+    // Call your project's existing Drive uploader, e.g.:
+    //
+    //     await yourDrive.upload(Buffer.from(pdfBytes), fileName);
+    //
+    // No Drive setup is included in this package on purpose — the destination
+    // project already has Google Drive configured. Until that's wired in, the
+    // app returns the PDF below so it can be downloaded.
+    // ======================================================================
 
     return res.json({
       ok: true,
       fileName,
-      drive: driveStatus,
       pdfBase64: Buffer.from(pdfBytes).toString('base64')
     });
   } catch (err) {
@@ -510,162 +457,13 @@ app.post('/api/submit', async (req, res) => {
   }
 });
 
-// ---- One-time Google Drive authorization (operator visits these once) ----
-
-// Step 1: send the operator to Google to grant access.
-app.get('/setup/google', (req, res) => {
-  if (!drive.canStartAuth()) {
-    return res.send(
-      setupPage(
-        'Google Drive isn’t set up yet',
-        `<p>Add these to the app's Environment settings first, then reload this page:</p>
-         <pre>GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET</pre>
-         <p>When creating the Google OAuth client, use this exact redirect URL:</p>
-         <pre>${redirectUriFromReq(req)}</pre>`
-      )
-    );
-  }
-  const url = drive.getAuthUrl(redirectUriFromReq(req));
-  res.redirect(url);
-});
-
-// Step 2: Google sends the operator back here with a code we trade for a token.
-app.get('/oauth2callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) {
-    return res
-      .status(400)
-      .send(setupPage('Authorization cancelled', '<p>No code was returned. You can close this and try again.</p>'));
-  }
-  try {
-    const tokens = await drive.exchangeCode(code, redirectUriFromReq(req));
-    if (!tokens.refresh_token) {
-      return res.send(
-        setupPage(
-          'Almost — one more try',
-          `<p>Google didn't return a refresh token (this happens if you've authorized before).
-           Go to your Google Account → Security → Third-party access, remove "Listening Lab",
-           then visit <code>/setup/google</code> again.</p>`
-        )
-      );
-    }
-    res.send(
-      setupPage(
-        'Copy this key into your app settings',
-        `<p>Add this as an environment variable named <code>GOOGLE_REFRESH_TOKEN</code>,
-         then redeploy. After that, every signed release uploads to your Drive folder automatically.</p>
-         <pre>${tokens.refresh_token}</pre>
-         <p>Keep this private — it grants access to your Drive.</p>`
-      )
-    );
-  } catch (err) {
-    console.error('OAuth exchange failed:', err.message);
-    res.status(500).send(setupPage('Something went wrong', `<pre>${err.message}</pre>`));
-  }
-});
-
 app.listen(PORT, () => {
   console.log('');
   console.log('  Listening Lab — Media Release app is running.');
   console.log(`  Local URL:                          http://localhost:${PORT}`);
   console.log(`  Local copies (when possible) saved: ${OUTPUT_DIR}`);
-  if (drive.isConfigured()) {
-    console.log('  Google Drive upload:                ON (releases auto-upload to your folder).');
-  } else if (drive.canStartAuth()) {
-    console.log('  Google Drive upload:                needs authorization — visit /setup/google once.');
-  } else {
-    console.log('  Google Drive upload:                OFF — add Google credentials to enable.');
-  }
   console.log('');
 });
-```
-
----
-
-## `googleDrive.js`
-
-```js
-'use strict';
-
-// Uploads signed-release PDFs to a Google Drive folder using the operator's own
-// Google account (OAuth2 with a long-lived refresh token). We use the user's own
-// account — rather than a service account — because service accounts can't write
-// into a personal ("My Drive") folder due to storage-quota limits.
-
-const { google } = require('googleapis');
-const { Readable } = require('stream');
-
-// The destination folder. Defaults to the Listening Lab folder you shared, but
-// can be overridden with an env var.
-const FOLDER_ID = process.env.GDRIVE_FOLDER_ID || '1YjuH6TGdtpZ0MIZChItaBRLKOMaY8RFE';
-
-// Full Drive scope so we can place files into your existing folder by its ID.
-const SCOPES = ['https://www.googleapis.com/auth/drive'];
-
-function getClientId() {
-  return process.env.GOOGLE_CLIENT_ID;
-}
-function getClientSecret() {
-  return process.env.GOOGLE_CLIENT_SECRET;
-}
-
-// True once all three credentials are present, i.e. uploads can happen.
-function isConfigured() {
-  return Boolean(getClientId() && getClientSecret() && process.env.GOOGLE_REFRESH_TOKEN);
-}
-
-// True once the app at least has an OAuth client (enough to start the one-time
-// authorization that produces the refresh token).
-function canStartAuth() {
-  return Boolean(getClientId() && getClientSecret());
-}
-
-function makeOAuthClient(redirectUri) {
-  return new google.auth.OAuth2(getClientId(), getClientSecret(), redirectUri);
-}
-
-// Build the Google consent URL the operator visits once to authorize the app.
-function getAuthUrl(redirectUri) {
-  if (!canStartAuth()) return null;
-  const client = makeOAuthClient(redirectUri);
-  return client.generateAuthUrl({
-    access_type: 'offline', // ask for a refresh token
-    prompt: 'consent', // force a refresh token to be returned
-    scope: SCOPES
-  });
-}
-
-// Exchange the one-time code from Google for tokens (including refresh_token).
-async function exchangeCode(code, redirectUri) {
-  const client = makeOAuthClient(redirectUri);
-  const { tokens } = await client.getToken(code);
-  return tokens;
-}
-
-// Upload a PDF (Buffer) into the destination folder. Returns the created file's
-// metadata, including a link to view it.
-async function uploadPdf(buffer, fileName) {
-  const client = makeOAuthClient();
-  client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-  const drive = google.drive({ version: 'v3', auth: client });
-
-  const res = await drive.files.create({
-    requestBody: { name: fileName, parents: [FOLDER_ID] },
-    media: { mimeType: 'application/pdf', body: Readable.from(buffer) },
-    fields: 'id, name, webViewLink'
-  });
-  return res.data;
-}
-
-module.exports = {
-  FOLDER_ID,
-  isConfigured,
-  canStartAuth,
-  getAuthUrl,
-  exchangeCode,
-  uploadPdf
-};
 ```
 
 ---
@@ -1144,33 +942,24 @@ a.submit-btn {
         throw new Error(data.error || 'Submission failed.');
       }
 
-      // Always build a download as a fallback (released below if not needed).
+      // Offer the signed PDF for download (save to Files, AirDrop, email…).
+      // NOTE: once the project's Drive upload is wired in on the server, you can
+      // hide this button and just show a "saved" confirmation instead.
       if (downloadUrl) {
         URL.revokeObjectURL(downloadUrl);
         downloadUrl = null;
       }
-
-      const driveOk = data.drive && data.drive.uploaded;
-      if (driveOk) {
-        // Uploaded to Google Drive automatically — no download needed.
-        confirmDetail.textContent = 'Saved to the Listening Lab Google Drive folder.';
-        downloadBtn.hidden = true;
-      } else if (data.pdfBase64) {
-        // Drive not set up (or upload failed) — offer the PDF as a fallback.
+      if (data.pdfBase64) {
         const blob = pdfBlobFromBase64(data.pdfBase64);
         downloadUrl = URL.createObjectURL(blob);
         downloadBtn.href = downloadUrl;
         downloadBtn.setAttribute('download', data.fileName || 'MediaRelease.pdf');
         downloadBtn.hidden = false;
-        confirmDetail.textContent =
-          data.drive && data.drive.configured
-            ? 'Drive upload didn’t go through — please download this copy.'
-            : data.fileName || '';
       } else {
         downloadBtn.hidden = true;
-        confirmDetail.textContent = data.fileName || '';
       }
 
+      confirmDetail.textContent = data.fileName || '';
       formScreen.hidden = true;
       confirmationScreen.hidden = false;
       window.scrollTo(0, 0);
@@ -1205,32 +994,6 @@ a.submit-btn {
 
 ---
 
-## `render.yaml`
-
-```yaml
-# One-click deploy config for Render (https://render.com).
-services:
-  - type: web
-    name: listening-lab-media-release
-    runtime: node
-    plan: free
-    buildCommand: npm install
-    startCommand: npm start
-    envVars:
-      - key: NODE_VERSION
-        value: 20
-      - key: GDRIVE_FOLDER_ID
-        value: 1YjuH6TGdtpZ0MIZChItaBRLKOMaY8RFE
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: GOOGLE_REFRESH_TOKEN
-        sync: false
-```
-
----
-
 ## `.gitignore`
 
 ```
@@ -1238,18 +1001,5 @@ node_modules/
 *.log
 .DS_Store
 ```
-
----
-
-## 8. Run locally
-
-```bash
-npm install
-npm start
-# open the printed local URL
-```
-
-Without Google env vars set, the app runs and falls back to PDF download, so it's
-fully testable before any Google setup.
 
 *End of handoff package.*
