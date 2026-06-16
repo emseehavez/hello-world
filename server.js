@@ -5,9 +5,42 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const drive = require('./googleDrive');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// We sit behind a proxy on hosts like Render; trust it so we build correct
+// https redirect URLs for the Google authorization step.
+app.set('trust proxy', true);
+
+// The exact redirect URL Google sends the operator back to after authorizing.
+// Derived from the incoming request so it matches the live host automatically.
+function redirectUriFromReq(req) {
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  return `${proto}://${req.get('host')}/oauth2callback`;
+}
+
+// Minimal styled HTML page used by the one-time Google setup screens.
+function setupPage(title, bodyHtml) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    margin:0;background:#f4f6f6;color:#1d2424;line-height:1.5}
+  header{background:#0d4f4f;color:#fff;padding:18px 20px}
+  header h1{margin:0;font-size:1.2rem;letter-spacing:1px}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 18px}
+  pre{background:#fff;border:1px solid #cdd6d6;border-radius:8px;padding:14px;
+    overflow:auto;white-space:pre-wrap;word-break:break-all;font-size:0.95rem}
+  code{background:#e8eded;padding:2px 5px;border-radius:4px}
+  a.btn{display:inline-block;background:#0d4f4f;color:#fff;text-decoration:none;
+    padding:12px 18px;border-radius:8px;margin-top:8px}
+</style></head>
+<body><header><h1>LISTENING LAB — Setup</h1></header>
+<div class="wrap"><h2>${title}</h2>${bodyHtml}</div></body></html>`;
+}
 
 // The release text shown on the form and stamped onto the PDF (verbatim).
 const RELEASE_PARAGRAPHS = [
@@ -284,11 +317,29 @@ app.post('/api/submit', async (req, res) => {
       console.warn(`Could not save a local copy (returning download only): ${writeErr.message}`);
     }
 
-    // Always hand the signed PDF back to the browser so the signer/operator
-    // can download, AirDrop, or email it — essential when deployed online.
+    // Primary delivery: upload the signed PDF straight to the Google Drive
+    // folder, automatically. If Drive isn't configured yet (or the upload
+    // fails), we still return the PDF so it can be downloaded as a fallback.
+    let driveStatus = { uploaded: false, configured: drive.isConfigured() };
+    if (drive.isConfigured()) {
+      try {
+        const uploaded = await drive.uploadPdf(Buffer.from(pdfBytes), fileName);
+        driveStatus = {
+          uploaded: true,
+          configured: true,
+          link: uploaded.webViewLink || null
+        };
+        console.log(`Uploaded to Google Drive: ${fileName}`);
+      } catch (driveErr) {
+        console.error('Google Drive upload failed:', driveErr.message);
+        driveStatus = { uploaded: false, configured: true, error: true };
+      }
+    }
+
     return res.json({
       ok: true,
       fileName,
+      drive: driveStatus,
       pdfBase64: Buffer.from(pdfBytes).toString('base64')
     });
   } catch (err) {
@@ -297,11 +348,72 @@ app.post('/api/submit', async (req, res) => {
   }
 });
 
+// ---- One-time Google Drive authorization (operator visits these once) ----
+
+// Step 1: send the operator to Google to grant access.
+app.get('/setup/google', (req, res) => {
+  if (!drive.canStartAuth()) {
+    return res.send(
+      setupPage(
+        'Google Drive isn’t set up yet',
+        `<p>Add these to the app's Environment settings first, then reload this page:</p>
+         <pre>GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET</pre>
+         <p>When creating the Google OAuth client, use this exact redirect URL:</p>
+         <pre>${redirectUriFromReq(req)}</pre>`
+      )
+    );
+  }
+  const url = drive.getAuthUrl(redirectUriFromReq(req));
+  res.redirect(url);
+});
+
+// Step 2: Google sends the operator back here with a code we trade for a token.
+app.get('/oauth2callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) {
+    return res
+      .status(400)
+      .send(setupPage('Authorization cancelled', '<p>No code was returned. You can close this and try again.</p>'));
+  }
+  try {
+    const tokens = await drive.exchangeCode(code, redirectUriFromReq(req));
+    if (!tokens.refresh_token) {
+      return res.send(
+        setupPage(
+          'Almost — one more try',
+          `<p>Google didn't return a refresh token (this happens if you've authorized before).
+           Go to your Google Account → Security → Third-party access, remove "Listening Lab",
+           then visit <code>/setup/google</code> again.</p>`
+        )
+      );
+    }
+    res.send(
+      setupPage(
+        'Copy this key into your app settings',
+        `<p>Add this as an environment variable named <code>GOOGLE_REFRESH_TOKEN</code>,
+         then redeploy. After that, every signed release uploads to your Drive folder automatically.</p>
+         <pre>${tokens.refresh_token}</pre>
+         <p>Keep this private — it grants access to your Drive.</p>`
+      )
+    );
+  } catch (err) {
+    console.error('OAuth exchange failed:', err.message);
+    res.status(500).send(setupPage('Something went wrong', `<pre>${err.message}</pre>`));
+  }
+});
+
 app.listen(PORT, () => {
   console.log('');
   console.log('  Listening Lab — Media Release app is running.');
   console.log(`  Local URL:                          http://localhost:${PORT}`);
   console.log(`  Local copies (when possible) saved: ${OUTPUT_DIR}`);
-  console.log('  Each signer can also download their signed PDF from the app.');
+  if (drive.isConfigured()) {
+    console.log('  Google Drive upload:                ON (releases auto-upload to your folder).');
+  } else if (drive.canStartAuth()) {
+    console.log('  Google Drive upload:                needs authorization — visit /setup/google once.');
+  } else {
+    console.log('  Google Drive upload:                OFF — add Google credentials to enable.');
+  }
   console.log('');
 });

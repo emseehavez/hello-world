@@ -83,10 +83,63 @@ tablet on the **same Wi-Fi network**:
 
 The computer running the app must stay on and awake.
 
+## Automatic upload to Google Drive
+
+When configured, every signed release is uploaded **automatically** to a Google
+Drive folder — no download step. The thank-you screen just says
+"Saved to the Listening Lab Google Drive folder."
+
+This needs a one-time setup in your own Google account (Google requires your
+permission before any app can write to your Drive). All of it can be done from a
+phone, but it's fiddly — take it slowly.
+
+**A. Create Google OAuth credentials**
+
+1. Go to **console.cloud.google.com** and create a project (any name).
+2. Search for and **enable** the **Google Drive API**.
+3. Go to **APIs & Services → OAuth consent screen**. Choose **External**, fill in
+   the app name and your email, and **add your own Google address as a Test
+   user**. To avoid the login expiring weekly, later set the publishing status to
+   **In production** (you'll see an "unverified app" warning — that's fine for
+   personal use; tap **Advanced → continue**).
+4. Go to **APIs & Services → Credentials → Create credentials → OAuth client ID**.
+   - Application type: **Web application**.
+   - Under **Authorized redirect URIs**, add your app's address followed by
+     `/oauth2callback`, e.g. `https://your-app.onrender.com/oauth2callback`.
+   - Create it, then copy the **Client ID** and **Client secret**.
+
+**B. Put the credentials into the app (Render → Environment)**
+
+In your Render service, open **Environment** and add:
+
+| Key | Value |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` | the Client ID from step A4 |
+| `GOOGLE_CLIENT_SECRET` | the Client secret from step A4 |
+| `GDRIVE_FOLDER_ID` | `1YjuH6TGdtpZ0MIZChItaBRLKOMaY8RFE` (already the default) |
+
+Save — Render redeploys automatically.
+
+**C. Authorize once to get the refresh token**
+
+1. Visit `https://your-app.onrender.com/setup/google` in a browser.
+2. Sign in with **the Google account that owns the Drive folder** and approve.
+3. The page shows a **refresh token**. Copy it.
+4. Back in Render → Environment, add one more variable:
+   `GOOGLE_REFRESH_TOKEN` = the token you copied. Save (it redeploys).
+
+That's it. From now on, every submission lands in your Drive folder
+automatically. (Until this is finished, the app falls back to offering a
+download so it's always usable.)
+
+> The destination folder is set with `GDRIVE_FOLDER_ID`. Make sure you authorize
+> with the Google account that can write to that folder.
+
 ## Where the signed PDFs go
 
-After each signature, the thank-you screen always offers a **Download signed
-PDF** button, so you can save/AirDrop/email the release from any device.
+If Google Drive isn't configured yet, the thank-you screen falls back to a
+**Download signed PDF** button so you can save/AirDrop/email the release from any
+device.
 
 When running **locally**, every submission is *also* saved automatically as a
 PDF in:

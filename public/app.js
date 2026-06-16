@@ -139,22 +139,33 @@
         throw new Error(data.error || 'Submission failed.');
       }
 
-      // Prepare the signed PDF for download (save to Files, AirDrop, email…).
+      // Always build a download as a fallback (released below if not needed).
       if (downloadUrl) {
         URL.revokeObjectURL(downloadUrl);
         downloadUrl = null;
       }
-      if (data.pdfBase64) {
+
+      const driveOk = data.drive && data.drive.uploaded;
+      if (driveOk) {
+        // Uploaded to Google Drive automatically — no download needed.
+        confirmDetail.textContent = 'Saved to the Listening Lab Google Drive folder.';
+        downloadBtn.hidden = true;
+      } else if (data.pdfBase64) {
+        // Drive not set up (or upload failed) — offer the PDF as a fallback.
         const blob = pdfBlobFromBase64(data.pdfBase64);
         downloadUrl = URL.createObjectURL(blob);
         downloadBtn.href = downloadUrl;
         downloadBtn.setAttribute('download', data.fileName || 'MediaRelease.pdf');
         downloadBtn.hidden = false;
+        confirmDetail.textContent =
+          data.drive && data.drive.configured
+            ? 'Drive upload didn’t go through — please download this copy.'
+            : data.fileName || '';
       } else {
         downloadBtn.hidden = true;
+        confirmDetail.textContent = data.fileName || '';
       }
 
-      confirmDetail.textContent = data.fileName ? data.fileName : '';
       formScreen.hidden = true;
       confirmationScreen.hidden = false;
       window.scrollTo(0, 0);

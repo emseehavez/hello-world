@@ -10,3 +10,13 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
+      # Destination Google Drive folder (the Listening Lab folder).
+      - key: GDRIVE_FOLDER_ID
+        value: 1YjuH6TGdtpZ0MIZChItaBRLKOMaY8RFE
+      # Google OAuth credentials — set these in the Render dashboard (kept secret).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
